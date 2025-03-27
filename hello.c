@@ -12,6 +12,5 @@ int main(){
     printf("Vrednost g1: %d\n", g1);
     printf("Vrednost g2: %d\n", g2);
     printf("Vrednost g3: %d\n", g3);
-    printf("Vrednost funkcije: %d\n", funkcija(5));
     return 0;
 }
