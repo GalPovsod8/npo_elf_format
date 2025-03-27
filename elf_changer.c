@@ -127,7 +127,7 @@ void elf_28878_simboli(char* zacetekElf){
     close(fd);
 }
 
-void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
+void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem) {
     int fd = open(zacetekElf, O_RDWR);
     if (fd == -1) {
         perror("Napaka pri odpiranju ELF datoteke");
@@ -155,7 +155,7 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
     }
 
     lseek(fd, elfHeader.e_shoff, SEEK_SET);
-    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != elfHeader.e_shnum * sizeof(Elf64_Shdr)) {
+    if ((size_t)read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != (size_t)(elfHeader.e_shnum * sizeof(Elf64_Shdr))) {
         perror("Napaka pri branju naslovov sekcij");
         free(sectionHeaders);
         close(fd);
@@ -172,7 +172,7 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
     }
 
     lseek(fd, stringTableHeader.sh_offset, SEEK_SET);
-    if (read(fd, stringTable, stringTableHeader.sh_size) != stringTableHeader.sh_size) {
+    if ((size_t)read(fd, stringTable, stringTableHeader.sh_size) != (size_t)(stringTableHeader.sh_size)) {
         perror("Napaka pri branju tabele znakov");
         free(stringTable);
         free(sectionHeaders);
@@ -180,8 +180,6 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
         return;
     }
 
-    Elf64_Sym *symbols = NULL;
-    int numSymbols = 0;
     for (int i = 0; i < elfHeader.e_shnum; i++) {
         if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".data") == 0 || strcmp(&stringTable[sectionHeaders[i].sh_name], ".bss") == 0) {
             Elf64_Shdr dataSectionHeader = sectionHeaders[i];
@@ -195,7 +193,7 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
             }
 
             lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
-            if (read(fd, data, dataSectionHeader.sh_size) != dataSectionHeader.sh_size) {
+            if ((size_t)read(fd, data, dataSectionHeader.sh_size) != (size_t)(dataSectionHeader.sh_size)) {
                 perror("Napaka pri branju podatkovne sekcije");
                 free(data);
                 free(stringTable);
@@ -215,8 +213,8 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
                         lseek(fd, sectionHeaders[k].sh_offset, SEEK_SET);
                         read(fd, symtab, sectionHeaders[k].sh_size);
 
-                        for (int l = 0; l < sectionHeaders[k].sh_size / sizeof(Elf64_Sym); l++) {
-                            if (ELF64_ST_TYPE(symtab[l].st_info) == STT_OBJECT && strcmp(&stringTable[sectionHeaders[elfHeader.e_shstrndx].sh_offset + symtab[l].st_name], varName) == 0) {
+                        for (size_t l = 0; l < sectionHeaders[k].sh_size / sizeof(Elf64_Sym); l++) {
+                            if (ELF64_ST_TYPE(symtab[l].st_info) == (size_t) STT_OBJECT && strcmp(&stringTable[sectionHeaders[elfHeader.e_shstrndx].sh_offset + symtab[l].st_name], varName) == 0) {
                                 unsigned long *varValue = (unsigned long *)(data + symtab[l].st_value - dataSectionHeader.sh_offset);
                                 printf("%s   0x%lx    0x%lx    0x%lx\n", varName, symtab[l].st_value, *varValue, *varValue + 3);
                                 *varValue += 3;
@@ -231,7 +229,7 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
             }
 
             lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
-            if (write(fd, data, dataSectionHeader.sh_size) != dataSectionHeader.sh_size) {
+            if ((size_t)write(fd, data, dataSectionHeader.sh_size) != (size_t)(dataSectionHeader.sh_size)) {
                 perror("Napaka pri pisanju spremenjene podatkovne sekcije");
             }
 
@@ -244,4 +242,3 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
     free(sectionHeaders);
     close(fd);
 }
-
