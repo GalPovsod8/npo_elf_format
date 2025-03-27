@@ -141,7 +141,8 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem) {
         return;
     }
 
-    if (elfHeader.e_ident[EI_MAG0] != 0x7f || elfHeader.e_ident[EI_MAG1] != 'E' || elfHeader.e_ident[EI_MAG2] != 'L' || elfHeader.e_ident[EI_MAG3] != 'F') {
+    if (elfHeader.e_ident[EI_MAG0] != 0x7f || elfHeader.e_ident[EI_MAG1] != 'E' || 
+        elfHeader.e_ident[EI_MAG2] != 'L' || elfHeader.e_ident[EI_MAG3] != 'F') {
         fprintf(stderr, "To ni veljavna ELF datoteka\n");
         close(fd);
         return;
@@ -155,7 +156,8 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem) {
     }
 
     lseek(fd, elfHeader.e_shoff, SEEK_SET);
-    if ((size_t)read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != (size_t)(elfHeader.e_shnum * sizeof(Elf64_Shdr))) {
+    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != 
+        (ssize_t)(elfHeader.e_shnum * sizeof(Elf64_Shdr))) {
         perror("Napaka pri branju naslovov sekcij");
         free(sectionHeaders);
         close(fd);
@@ -172,7 +174,7 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem) {
     }
 
     lseek(fd, stringTableHeader.sh_offset, SEEK_SET);
-    if ((size_t)read(fd, stringTable, stringTableHeader.sh_size) != (size_t)(stringTableHeader.sh_size)) {
+    if (read(fd, stringTable, stringTableHeader.sh_size) != (ssize_t)(stringTableHeader.sh_size)) {
         perror("Napaka pri branju tabele znakov");
         free(stringTable);
         free(sectionHeaders);
@@ -180,64 +182,73 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem) {
         return;
     }
 
+    Elf64_Shdr *symtabHeader = NULL;
+    Elf64_Shdr *strtabHeader = NULL;
     for (int i = 0; i < elfHeader.e_shnum; i++) {
-        if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".data") == 0 || strcmp(&stringTable[sectionHeaders[i].sh_name], ".bss") == 0) {
-            Elf64_Shdr dataSectionHeader = sectionHeaders[i];
-            unsigned char *data = malloc(dataSectionHeader.sh_size);
-            if (data == NULL) {
-                perror("Napaka pri dodeljevanju pomnilnika za podatke sekcije");
-                free(stringTable);
-                free(sectionHeaders);
-                close(fd);
-                return;
-            }
-
-            lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
-            if ((size_t)read(fd, data, dataSectionHeader.sh_size) != (size_t)(dataSectionHeader.sh_size)) {
-                perror("Napaka pri branju podatkovne sekcije");
-                free(data);
-                free(stringTable);
-                free(sectionHeaders);
-                close(fd);
-                return;
-            }
-
-            printf("IME     NASLOV     VREDNOST     NOVA_VREDNOST\n");
-            for (int j = 0; j < stevSprem; j++) {
-                char *varName = sprem[j];
-                int found = 0;
-
-                for (int k = 0; k < elfHeader.e_shnum; k++) {
-                    if (sectionHeaders[k].sh_type == SHT_SYMTAB) {
-                        Elf64_Sym *symtab = malloc(sectionHeaders[k].sh_size);
-                        lseek(fd, sectionHeaders[k].sh_offset, SEEK_SET);
-                        read(fd, symtab, sectionHeaders[k].sh_size);
-
-                        for (size_t l = 0; l < sectionHeaders[k].sh_size / sizeof(Elf64_Sym); l++) {
-                            if (ELF64_ST_TYPE(symtab[l].st_info) == (size_t) STT_OBJECT && strcmp(&stringTable[sectionHeaders[elfHeader.e_shstrndx].sh_offset + symtab[l].st_name], varName) == 0) {
-                                unsigned long *varValue = (unsigned long *)(data + symtab[l].st_value - dataSectionHeader.sh_offset);
-                                printf("%s   0x%lx    0x%lx    0x%lx\n", varName, symtab[l].st_value, *varValue, *varValue + 3);
-                                *varValue += 3;
-                                found = 1;
-                                break;
-                            }
-                        }
-                        free(symtab);
-                    }
-                    if (found) break;
-                }
-            }
-
-            lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
-            if ((size_t)write(fd, data, dataSectionHeader.sh_size) != (size_t)(dataSectionHeader.sh_size)) {
-                perror("Napaka pri pisanju spremenjene podatkovne sekcije");
-            }
-
-            free(data);
-            break;
+        if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".symtab") == 0) {
+            symtabHeader = &sectionHeaders[i];
+        }
+        if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".strtab") == 0) {
+            strtabHeader = &sectionHeaders[i];
         }
     }
 
+    if (!symtabHeader || !strtabHeader) {
+        printf("Ni mogoče najti tabele simbolov ali tabele nizov\n");
+        free(stringTable);
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
+
+    char *symNames = malloc(strtabHeader->sh_size);
+    lseek(fd, strtabHeader->sh_offset, SEEK_SET);
+    read(fd, symNames, strtabHeader->sh_size);
+
+    Elf64_Sym *symtab = malloc(symtabHeader->sh_size);
+    lseek(fd, symtabHeader->sh_offset, SEEK_SET);
+    read(fd, symtab, symtabHeader->sh_size);
+
+    printf("IME     NASLOV     VREDNOST     NOVA_VREDNOST\n");
+    for (int j = 0; j < stevSprem; j++) {
+        char *varName = sprem[j];
+        int found = 0;
+
+        for (size_t l = 0; l < symtabHeader->sh_size / sizeof(Elf64_Sym); l++) {
+            if (strcmp(&symNames[symtab[l].st_name], varName) == 0 && 
+                ELF64_ST_TYPE(symtab[l].st_info) == STT_OBJECT) {
+                
+                for (int k = 0; k < elfHeader.e_shnum; k++) {
+                    if (sectionHeaders[k].sh_addr <= symtab[l].st_value && 
+                        symtab[l].st_value < sectionHeaders[k].sh_addr + sectionHeaders[k].sh_size) {
+                        
+                        Elf64_Shdr dataSectionHeader = sectionHeaders[k];
+                        unsigned char *data = malloc(dataSectionHeader.sh_size);
+                        lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
+                        read(fd, data, dataSectionHeader.sh_size);
+
+                        unsigned long *varValue = (unsigned long *)(data + (symtab[l].st_value - dataSectionHeader.sh_addr));
+                        printf("%s   0x%lx    0x%lx    0x%lx\n", 
+                               varName, symtab[l].st_value, *varValue, *varValue + 3);
+                        *varValue += 3;
+
+                        lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
+                        write(fd, data, dataSectionHeader.sh_size);
+                        free(data);
+                        found = 1;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+        if (!found) {
+            printf("Spremenljivka %s ni bila najdena\n", varName);
+        }
+    }
+
+    free(symtab);
+    free(symNames);
     free(stringTable);
     free(sectionHeaders);
     close(fd);
