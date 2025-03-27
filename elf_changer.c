@@ -239,5 +239,9 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
             break;
         }
     }
+
+    free(stringTable);
+    free(sectionHeaders);
+    close(fd);
 }
 
