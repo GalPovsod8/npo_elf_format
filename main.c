@@ -9,4 +9,9 @@ int main(int argc, char *argv[]){
     char *elf_path = NULL;
     char *variables[100];
     int var_count = 0;
+
+    if (argc < 3) {
+        printf("Uporaba: %s elf_loader [-hlc] [OPTIONS] elf_path\n", argv[0]);
+        return 1;
+    }
 }
