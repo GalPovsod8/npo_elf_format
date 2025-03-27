@@ -49,6 +49,30 @@ void elf_28878_simboli(char* zacetekElf){
         close(fd);
         return;
     }
+
+    Elf64_Shdr *sectionHeaders = malloc(elfHeader.e_shnum * sizeof(Elf64_Shdr));
+    if (sectionHeaders == NULL) {
+        perror("Problem pri alociranju spomina za glave odsekov");
+        close(fd);
+        return;
+    }
+
+    lseek(fd, elfHeader.e_shoff, SEEK_SET);
+    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != elfHeader.e_shnum * sizeof(Elf64_Shdr)) {
+        perror("Problem pri branju glave odsekov");
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
+
+    Elf64_Shdr stringTableHeader = sectionHeaders[elfHeader.e_shstrndx];
+    char *stringTable = malloc(stringTableHeader.sh_size);
+    if (stringTable == NULL) {
+        perror("Problem pri alociranju spomina za tabele nizov");
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
 }
 
 void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
