@@ -128,6 +128,23 @@ void elf_28878_simboli(char* zacetekElf){
 }
 
 void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
+    int fd = open(zacetekElf, O_RDWR);
+    if (fd == -1) {
+        perror("Napaka pri odpiranju ELF datoteke");
+        return;
+    }
 
+    Elf64_Ehdr elfHeader;
+    if (read(fd, &elfHeader, sizeof(Elf64_Ehdr)) != sizeof(Elf64_Ehdr)) {
+        perror("Napaka pri branju ELF glave");
+        close(fd);
+        return;
+    }
+
+    if (elfHeader.e_ident[EI_MAG0] != 0x7f || elfHeader.e_ident[EI_MAG1] != 'E' || elfHeader.e_ident[EI_MAG2] != 'L' || elfHeader.e_ident[EI_MAG3] != 'F') {
+        fprintf(stderr, "To ni veljavna ELF datoteka\n");
+        close(fd);
+        return;
+    }
 }
 
