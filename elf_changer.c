@@ -31,10 +31,12 @@ void elf_28878_glava(char* zacetekElf){
 }
 
 void elf_28878_simboli(char* zacetekElf){
-    
+    printf(zacetekElf);
 }
 
 void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
-
+    printf(zacetekElf);
+    printf(sprem);
+    printf(stevSprem);
 }
 
