@@ -31,12 +31,27 @@ void elf_28878_glava(char* zacetekElf){
 }
 
 void elf_28878_simboli(char* zacetekElf){
-    printf(zacetekElf);
+    int fd = open(zacetekElf, O_RDONLY);
+    if (fd == -1) {
+        perror("Problem pri odpiranju datoteke elf");
+        return;
+    }
+
+    Elf64_Ehdr elfHeader;
+    if (read(fd, &elfHeader, sizeof(Elf64_Ehdr)) != sizeof(Elf64_Ehdr)) {
+        perror("Problem pri branju glave ELF");
+        close(fd);
+        return;
+    }
+
+    if (elfHeader.e_ident[EI_MAG0] != 0x7f || elfHeader.e_ident[EI_MAG1] != 'E' || elfHeader.e_ident[EI_MAG2] != 'L' || elfHeader.e_ident[EI_MAG3] != 'F') {
+        fprintf(stderr, "Datoteka, ki ste jo podali ni pravi format (ELF)\n");
+        close(fd);
+        return;
+    }
 }
 
 void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
-    printf(zacetekElf);
-    printf(sprem);
-    printf(stevSprem);
+
 }
 
