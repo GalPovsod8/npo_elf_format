@@ -1,28 +1,20 @@
-all:
-	make build make run
+CC = gcc
+CFLAGS = -Wall -Wextra -Wpedantic -Werror
+SRCS = main.c elf_changer.c
+OBJS = $(SRCS:.c=.o)
 
-build:
-	make build_elf_changer
-	make build_hello
+all: build run
 
-build_elf_changer:
-	gcc -Wall -Wextra -Wpedantic -Werror -o elf_changer main.c
+build: build_elf_changer build_hello
+
+build_elf_changer: $(OBJS)
+	$(CC) $(CFLAGS) -o elf_changer $(OBJS)
 
 build_hello:
-	gcc -Wall -Wextra -Wpedantic -Werror -o hello hello.c
+	$(CC) $(CFLAGS) -o hello hello.c
 
 run:
-	./elf_changer hello
+	./elf_changer
 
 clean:
-	rm -f elf_changer hello
-
-
-
-
-
-
-
-
-
-
+	- rm -f elf_changer hello *.o
