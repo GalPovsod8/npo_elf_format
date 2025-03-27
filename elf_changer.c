@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <elf.h>
@@ -58,7 +59,7 @@ void elf_28878_simboli(char* zacetekElf){
     }
 
     lseek(fd, elfHeader.e_shoff, SEEK_SET);
-    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != elfHeader.e_shnum * sizeof(Elf64_Shdr)) {
+    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != (ssize_t)(elfHeader.e_shnum * sizeof(Elf64_Shdr))){
         perror("Problem pri branju glave odsekov");
         free(sectionHeaders);
         close(fd);
@@ -73,6 +74,57 @@ void elf_28878_simboli(char* zacetekElf){
         close(fd);
         return;
     }
+
+    lseek(fd, stringTableHeader.sh_offset, SEEK_SET);
+    if (read(fd, stringTable, stringTableHeader.sh_size) != (ssize_t)(stringTableHeader.sh_size)){
+        perror("Problem pri branju tabele nizov");
+        free(stringTable);
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
+
+    Elf64_Sym *symbols = NULL;
+    int numSymbols = 0;
+
+    for (int i = 0; i < elfHeader.e_shnum; i++) {
+        if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".symtab") == 0) {
+            Elf64_Shdr symtabHeader = sectionHeaders[i];
+            symbols = malloc(symtabHeader.sh_size);
+            if (symbols == NULL) {
+                perror("Problem pri alociranju spomina za simbole");
+                free(stringTable);
+                free(sectionHeaders);
+                close(fd);
+                return;
+            }
+
+            lseek(fd, symtabHeader.sh_offset, SEEK_SET);
+            numSymbols = symtabHeader.sh_size / sizeof(Elf64_Sym);
+            if (read(fd, symbols, symtabHeader.sh_size) != (ssize_t)(symtabHeader.sh_size)){
+                perror("Problem pri branju tabele simbolov");
+                free(symbols);
+                free(stringTable);
+                free(sectionHeaders);
+                close(fd);
+                return;
+            }
+            break;
+        }
+    }
+
+    printf("  [Nr]   Value           Size    Name\n");
+
+    for (int i = 0; i < numSymbols; i++) {
+        if (ELF64_ST_TYPE(symbols[i].st_info) == STT_FUNC && symbols[i].st_size > 4) {
+            printf("  [%02d]   0x%08lx      %d      %s\n", i, (unsigned long)symbols[i].st_value, (int)symbols[i].st_size, &stringTable[sectionHeaders[elfHeader.e_shstrndx].sh_offset + symbols[i].st_name]);
+        }
+    }
+
+    free(symbols);
+    free(stringTable);
+    free(sectionHeaders);
+    close(fd);
 }
 
 void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
