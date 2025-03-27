@@ -11,6 +11,13 @@ void elf_28878_glava(char* zacetekElf){
         perror("open");
         exit(EXIT_FAILURE);
     }
+
+    Elf64_Ehdr ehdr;
+    if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr)) {
+        perror("read");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
 }
 
 void elf_28878_simboli(char* zacetekElf){
