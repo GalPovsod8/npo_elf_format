@@ -179,5 +179,65 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
         close(fd);
         return;
     }
+
+    Elf64_Sym *symbols = NULL;
+    int numSymbols = 0;
+    for (int i = 0; i < elfHeader.e_shnum; i++) {
+        if (strcmp(&stringTable[sectionHeaders[i].sh_name], ".data") == 0 || strcmp(&stringTable[sectionHeaders[i].sh_name], ".bss") == 0) {
+            Elf64_Shdr dataSectionHeader = sectionHeaders[i];
+            unsigned char *data = malloc(dataSectionHeader.sh_size);
+            if (data == NULL) {
+                perror("Napaka pri dodeljevanju pomnilnika za podatke sekcije");
+                free(stringTable);
+                free(sectionHeaders);
+                close(fd);
+                return;
+            }
+
+            lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
+            if (read(fd, data, dataSectionHeader.sh_size) != dataSectionHeader.sh_size) {
+                perror("Napaka pri branju podatkovne sekcije");
+                free(data);
+                free(stringTable);
+                free(sectionHeaders);
+                close(fd);
+                return;
+            }
+
+            printf("IME     NASLOV     VREDNOST     NOVA_VREDNOST\n");
+            for (int j = 0; j < stevSprem; j++) {
+                char *varName = sprem[j];
+                int found = 0;
+
+                for (int k = 0; k < elfHeader.e_shnum; k++) {
+                    if (sectionHeaders[k].sh_type == SHT_SYMTAB) {
+                        Elf64_Sym *symtab = malloc(sectionHeaders[k].sh_size);
+                        lseek(fd, sectionHeaders[k].sh_offset, SEEK_SET);
+                        read(fd, symtab, sectionHeaders[k].sh_size);
+
+                        for (int l = 0; l < sectionHeaders[k].sh_size / sizeof(Elf64_Sym); l++) {
+                            if (ELF64_ST_TYPE(symtab[l].st_info) == STT_OBJECT && strcmp(&stringTable[sectionHeaders[elfHeader.e_shstrndx].sh_offset + symtab[l].st_name], varName) == 0) {
+                                unsigned long *varValue = (unsigned long *)(data + symtab[l].st_value - dataSectionHeader.sh_offset);
+                                printf("%s   0x%lx    0x%lx    0x%lx\n", varName, symtab[l].st_value, *varValue, *varValue + 3);
+                                *varValue += 3;
+                                found = 1;
+                                break;
+                            }
+                        }
+                        free(symtab);
+                    }
+                    if (found) break;
+                }
+            }
+
+            lseek(fd, dataSectionHeader.sh_offset, SEEK_SET);
+            if (write(fd, data, dataSectionHeader.sh_size) != dataSectionHeader.sh_size) {
+                perror("Napaka pri pisanju spremenjene podatkovne sekcije");
+            }
+
+            free(data);
+            break;
+        }
+    }
 }
 
