@@ -146,5 +146,38 @@ void elf_28878_menjaj(char* zacetekElf, char *sprem[], int stevSprem){
         close(fd);
         return;
     }
+
+    Elf64_Shdr *sectionHeaders = malloc(elfHeader.e_shnum * sizeof(Elf64_Shdr));
+    if (sectionHeaders == NULL) {
+        perror("Napaka pri dodeljevanju pomnilnika za naslove sekcij");
+        close(fd);
+        return;
+    }
+
+    lseek(fd, elfHeader.e_shoff, SEEK_SET);
+    if (read(fd, sectionHeaders, elfHeader.e_shnum * sizeof(Elf64_Shdr)) != elfHeader.e_shnum * sizeof(Elf64_Shdr)) {
+        perror("Napaka pri branju naslovov sekcij");
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
+
+    Elf64_Shdr stringTableHeader = sectionHeaders[elfHeader.e_shstrndx];
+    char *stringTable = malloc(stringTableHeader.sh_size);
+    if (stringTable == NULL) {
+        perror("Napaka pri dodeljevanju pomnilnika za tabelo znakov");
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
+
+    lseek(fd, stringTableHeader.sh_offset, SEEK_SET);
+    if (read(fd, stringTable, stringTableHeader.sh_size) != stringTableHeader.sh_size) {
+        perror("Napaka pri branju tabele znakov");
+        free(stringTable);
+        free(sectionHeaders);
+        close(fd);
+        return;
+    }
 }
 
